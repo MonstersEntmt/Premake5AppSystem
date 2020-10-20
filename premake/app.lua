@@ -83,9 +83,9 @@ function globalApp.addState(app, state, verbose)
 		if type(state.filter) == "table" then
 			local str = "Added state { "
 			for i, filter in pairs(state.filter) do
-				str = '"' .. str .. filter .. '"'
-				if i < #state.filters - 1 then
-					str .. ", "
+				str = str .. '"' .. filter .. '"'
+				if i < #state.filter then
+					str = str .. ", "
 				end
 			end
 			print(str .. " } to " .. app.name)
@@ -102,7 +102,7 @@ local function getAllIncludeDirectories(app, includeDirs)
 	end
 end
 
-local function globalApp.premakeApp(app, verbose)
+local function premakeApp(app, verbose)
 	if app.premaked then
 		return
 	end
@@ -111,7 +111,7 @@ local function globalApp.premakeApp(app, verbose)
 	local sysincludedirectories = {}
 	for name, dep in pairs(app.dependencies) do
 		table.insert(deps, name)
-		globalApp.premakeApp(dep)
+		premakeApp(dep)
 		getAllIncludeDirectories(dep, sysincludedirectories)
 	end
 	
@@ -165,7 +165,7 @@ function globalApp.premakeWorkspace(WorkspaceName, Platforms, Configurations, st
 	platforms(Platforms)
 	configurations(Configurations)
 	for name, app in pairs(apps) do
-		globalApp.premakeApp(app)
+		premakeApp(app)
 	end
 	workspace(WorkspaceName)
 	startproject(startApp.name)
