@@ -3,45 +3,45 @@ if not apps then
 	apps = {}
 end
 
-function globalApp.third_party_app(name, currentPath)
+function globalApp.third_party_app(name, currentPath, verbose)
 	if apps[name] then
 		return apps[name]
 	end
 	
 	local module_path = "Third_Party/" .. name .. "/premakeApp.lua"
-	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/")
+	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/", verbose)
 	app.warnings = "Off"
 	apps[app.name] = app
 	
 	return app
 end
 
-function globalApp.third_party_library(name, currentPath)
+function globalApp.third_party_library(name, currentPath, verbose)
 	if apps[name] then
 		return apps[name]
 	end
 	
 	local module_path = "Third_Party/" .. name .. ".lua"
-	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/")
+	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/", verbose)
 	app.warnings = "Off"
 	apps[app.name] = app
 	
 	return app
 end
 
-function globalApp.local_app()
+function globalApp.local_app(verbose)
 	if apps[name] then
 		return apps[name]
 	end
 	
-	local app = assert(loadfile("premakeApp.lua"))("")
+	local app = assert(loadfile("premakeApp.lua"))("", verbose)
 	app.group = "Apps"
 	apps[app.name] = app
 	
 	return app
 end
 
-function globalApp.app(name, currentPath)
+function globalApp.app(name, currentPath, verbose)
 	if apps[name] then
 		return apps[name]
 	end
@@ -64,17 +64,35 @@ function globalApp.app(name, currentPath)
 	app.states = {}
 	
 	apps[name] = app
-	print("Created app " .. name)
+	if verbose then
+		print("Created app " .. name)
+	end
 	return app
 end
 
-function globalApp.addDependency(app, dependency)
+function globalApp.addDependency(app, dependency, verbose)
 	app.dependencies[dependency.name] = dependency
-	print("Added dependency " .. dependency.name .. " to " .. app.name)
+	if verbose then
+		print("Added dependency " .. dependency.name .. " to " .. app.name)
+	end
 end
 
-function globalApp.addState(app, state)
+function globalApp.addState(app, state, verbose)
 	table.insert(app.states, state)
+	if verbose then
+		if type(state.filter) == "table" then
+			local str = "Added state { "
+			for i, filter in pairs(state.filter) do
+				str = '"' .. str .. filter .. '"'
+				if i < #state.filters - 1 then
+					str .. ", "
+				end
+			end
+			print(str .. " } to " .. app.name)
+		else
+			print("Added state " .. '"' .. state.filter .. '"' .. " to " .. app.name)
+		end
+	end
 end
 
 local function getAllIncludeDirectories(app, includeDirs)
@@ -84,7 +102,7 @@ local function getAllIncludeDirectories(app, includeDirs)
 	end
 end
 
-local function globalApp.premakeApp(app)
+local function globalApp.premakeApp(app, verbose)
 	if app.premaked then
 		return
 	end
@@ -97,7 +115,9 @@ local function globalApp.premakeApp(app)
 		getAllIncludeDirectories(dep, sysincludedirectories)
 	end
 	
-	print("Premake function called on app " .. app.name)
+	if verbose then
+		print("Premake function called on app " .. app.name)
+	end
 	group(app.group)
 	project(app.name)
 	debugdir(app.debugDir)
@@ -137,8 +157,10 @@ local function globalApp.premakeApp(app)
 	app.premaked = true
 end
 
-function globalApp.premakeWorkspace(WorkspaceName, Platforms, Configurations, startApp)
-	print("Premake workspace called with " .. startApp.name .. " as startup")
+function globalApp.premakeWorkspace(WorkspaceName, Platforms, Configurations, startApp, verbose)
+	if verbose then
+		print("Premake workspace called with " .. startApp.name .. " as startup")
+	end
 	workspace(WorkspaceName)
 	platforms(Platforms)
 	configurations(Configurations)
