@@ -1,8 +1,7 @@
 local ProjectName = "PremakeProject"
 
 local globalApp = require("premake/app")
-local app = assert(loadfile("premakeApp.lua"))("")
-app.group = "Apps"
+local app = globalApp.local_app()
 
 local utils = require("premake/utils")
 

@@ -29,6 +29,18 @@ function globalApp.third_party_library(name, currentPath)
 	return app
 end
 
+function globalApp.local_app()
+	if apps[name] then
+		return apps[name]
+	end
+	
+	local app = assert(loadfile("premakeApp.lua"))("")
+	app.group = "Apps"
+	apps[app.name] = app
+	
+	return app
+end
+
 function globalApp.app(name, currentPath)
 	if apps[name] then
 		return apps[name]
@@ -72,7 +84,7 @@ local function getAllIncludeDirectories(app, includeDirs)
 	end
 end
 
-function globalApp.premakeApp(app)
+local function globalApp.premakeApp(app)
 	if app.premaked then
 		return
 	end
