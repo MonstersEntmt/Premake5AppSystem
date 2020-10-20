@@ -23,5 +23,5 @@ Be sure to remember to swap ```[LibraryName]``` with the actual library name.
 
 Changing project properties can be done using variables in the app object. For help on what can be done visit the Wiki.
 
-Q. But how do I change premake stuff myself?<br>
+### Q. But how do I change premake stuff myself?<br>
 A. Use State object and add that to the app with a filter of your shoosing, making the filter = {} will make it work on anything.
