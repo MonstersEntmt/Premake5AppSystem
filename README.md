@@ -1,5 +1,5 @@
 # Premake5AppSystem
-A premake5 system that allows sub systems to be loaded as well
+A premake5 system that allows apps with dependencies with more dependencies
 
 # How it works
 With normal premake projects you have a ```premake5.lua``` file that control how premake5 operates in that project.
