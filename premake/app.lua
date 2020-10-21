@@ -48,13 +48,18 @@ function globalApp.app(name, currentPath, verbose)
 	
 	local app = {}
 	
+	app.cppDialect = "C++17"
+	app.rtti = "Off"
+	app.exceptionHandling = "On"
+	app.flags = { "MultiProcessorCompile" }
 	app.name = name
 	app.currentPath = currentPath
 	app.dependencies = {}
 	app.group = "Libs"
 	app.location = "Build/%{_ACTION}"
 	app.objectDir = "Output/" .. name .. "/Obj/"
-	app.targetDir = "Output/" .. name .. "/Bin/"
+	app.outputDir = "Output/" .. name .. "/Bin/"
+	app.libraryDir = "Output/" .. name .. "/Lib/"
 	app.includeDir = name .. "/Include/"
 	app.sourceDir = name .. "/Source/"
 	app.resourceDir = name .. "/Assets/"
@@ -68,6 +73,28 @@ function globalApp.app(name, currentPath, verbose)
 		print("Created app " .. name)
 	end
 	return app
+end
+
+function globalApp.addFlag(app, flag, verbose)
+	table.insert(app.flags, flag)
+	if verbose then
+		print("Added flag " .. flag .. " to "  .. app.name)
+	end
+end
+
+function globalApp.getLocalFilePath(app, file)
+	return app.currentPath .. file
+end
+
+function globalApp.addFile(app, file, verbose)
+	if not app.files then
+		app.files = {}
+	end
+
+	table.insert(app.files, file)
+	if verbose then
+		print("Added file " .. file .. " to "  .. app.name)
+	end
 end
 
 function globalApp.addDependency(app, dependency, verbose)
@@ -119,13 +146,16 @@ local function premakeApp(app, verbose)
 		print("Premake function called on app " .. app.name)
 	end
 	group(app.group)
+	cppdialect(app.cppDialect)
+	exceptionhandling(app.exceptionHandling)
+	flags(app.flags)
+	rtti(app.rtti)
 	project(app.name)
 	debugdir(app.debugDir)
 	links(deps)
 	location(app.currentPath .. app.location)
 	xcodebuildresources(app.currentPath .. app.resourceDir)
 	warnings(app.warnings)
-	targetdir(app.targetDir)
 	objdir(app.objectDir)
 	includedirs(app.currentPath .. app.includeDir)
 	sysincludedirs(sysincludedirectories)
@@ -151,6 +181,32 @@ local function premakeApp(app, verbose)
 		filter(state.filter)
 		state.premakeState()
 	end
+	
+	if project().kind == "StaticLib" or project().kind == "SharedLib" then
+		targetdir(app.currentPath .. app.libraryDir)
+	else
+		targetdir(app.currentPath .. app.outputDir)
+	end
+	
+	filter("configurations:Debug")
+		optimize("Off")
+		symbols("On")
+		defines({ "_DEBUG", "_CRT_SECURE_NO_WARNINGS" })
+	
+	filter("configurations:Release")
+		optimize("Full")
+		symbols("Off")
+		defines({ "_RELEASE", "NDEBUG", "_CRT_SECURE_NO_WARNINGS" })
+	
+	filter("system:windows")
+		toolset("msc")
+		defines({ "NOMINMAX" })
+	
+	filter("system:not windows")
+		toolset("gcc")
+	
+	filter("system:linux")
+		debugenvs({ "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:../%{OUTDIR}" })
 	
 	filter({})
 	
