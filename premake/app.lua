@@ -48,7 +48,7 @@ local APP = {
 	thirdPartyFolder = "Third_Party/",
 	defaultIncludeDir = "/inc/",
 	defaultSourceDir = "/src/",
-	defautlDebugFolder = "/run/",
+	defaultDebugFolder = "/run/",
 	startApp = nil
 }
 
@@ -223,10 +223,10 @@ function APP.GetOrCreateApp(name)
 	app.objectDir = "Output/" .. name .. "/Obj/"
 	app.outputDir = "Output/" .. name .. "/Bin/"
 	app.libraryDir = "Output/" .. name .. "/Lib/"
-	app.includeDir = name .. APP.includeFolder
-	app.sourceDir = name .. APP.sourceFolder
-	app.resourceDir = name .. APP.debugFolder .. "assets/"
-	app.debugDir = name .. APP.debugFolder
+	app.includeDir = name .. APP.defaultIncludeDir
+	app.sourceDir = name .. APP.defaultSourceDir
+	app.resourceDir = name .. APP.defaultDebugFolder .. "assets/"
+	app.debugDir = name .. APP.defaultDebugFolder
 	app.cppDialect = "C++17"
 	app.rtti = "Off"
 	app.exceptionHandling = "On"

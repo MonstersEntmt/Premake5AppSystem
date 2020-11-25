@@ -6,10 +6,12 @@ function UTILS.AddPlatforms()
 		APP.AddPlatform("arm64-v8a")
 		APP.AddPlatform("x86")
 		APP.AddPlatform("x86_64")
+		return
 	end
 	
 	if os.ishost("windows") then
 		APP.AddPlatform("x64")
+		return
 	end
 	
 	local arch = os.outputof("uname -m")
