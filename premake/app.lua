@@ -223,10 +223,10 @@ function APP.GetOrCreateApp(name)
 	app.objectDir = "Output/" .. name .. "/Obj/"
 	app.outputDir = "Output/" .. name .. "/Bin/"
 	app.libraryDir = "Output/" .. name .. "/Lib/"
-	app.includeDir = name .. "/inc/"
-	app.sourceDir = name .. "/src/"
-	app.resourceDir = name .. "/run/assets/"
-	app.debugDir = name .. "/run/"
+	app.includeDir = name .. APP.includeFolder
+	app.sourceDir = name .. APP.sourceFolder
+	app.resourceDir = name .. APP.debugFolder .. "assets/"
+	app.debugDir = name .. APP.debugFolder
 	app.cppDialect = "C++17"
 	app.rtti = "Off"
 	app.exceptionHandling = "On"
