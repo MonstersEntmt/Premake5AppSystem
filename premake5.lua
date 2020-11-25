@@ -1,8 +1,20 @@
-local ProjectName = "PremakeProject"
+-- Require the premake app system globally
+APP = require("premake/app")
+UTILS = require("premake/utils")
 
-local globalApp = require("premake/app")
-local app = globalApp.local_app(true)
+-- Set workspace name
+-- Add platforms and configurations
+APP.SetWorkspaceName("Premake Workspace")
+UTILS.AddPlatforms()
+UTILS.AddConfigurations()
 
-local utils = require("premake/utils")
+-- Get the local app at "premakeApp.lua"
+local apps = APP.GetLocalApp()
 
-globalApp.premakeWorkspace(ProjectName, utils.get_platforms(), { "Debug", "Release" }, app, true)
+-- Set the Startup app as the first app from the local app
+-- apps might be a single element too, this depends on what
+-- you put inside the local "premakeApp.lua" file.
+APP.SetStartApp(apps[1])
+
+-- Call the premake functions
+APP.PremakeWorkspace()

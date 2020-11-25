@@ -1,28 +1,23 @@
--- Has to be here for sub apps and sub libs to work properly
-local currentPath, verbose = ...
-
-local globalApp = require("premake/app")
-
--- Load in sub app from it's premakeApp.lua file in third_part/SubApp/
-local subApp = globalApp.third_party_app("SubApp", currentPath, verbose)
--- Load in sub lib from it's SubLib.lua file in third_party/
-local subLib = globalApp.third_party_library("SubLib", currentPath, verbose)
+-- Load in sub app from it's premakeApp.lua file in Third_Party/SubApp/
+local subApp = APP.GetThirdPartyApp("SubApp")
+-- Load in sub lib from it's SubLib.lua file in Third_Party/
+local subLib = APP.GetThirdPartyLibrary("SubLib")
 
 -- Create PremakeProject app
-local app = globalApp.app("PremakeProject", currentPath, verbose)
+local app = APP.GetOrCreateApp("PremakeProject")
 app.kind = "ConsoleApp"
 
 -- Add subApp as dependency of app
-globalApp.addDependency(app, subApp, verbose)
+app.AddDependency(subApp)
 -- Add subLib as dependency of app
-globalApp.addDependency(app, subLib, verbose)
+app.AddDependency(subLib)
 -- Add a custom state to the app that gets called when filter is correct.
-globalApp.addState(app, { filter = "system:linux", premakeState = function()
+app.AddState("system:linux", function()
 	print("We are on linux baby!")
-end}, verbose)
--- Add a custom state to the app that gets called then the filter is correct.
-globalApp.addState(app, { filter = { "system:macosx or ios", "files:**.cpp" }, premakeState = function()
+end)
+-- Add a custom state to the app that gets called when the filter is correct.
+app.AddState({ "system:macosx or ios", "files:**.cpp" }, function()
 	print("We are either on macosx or ios and we are setting data for all .cpp files")
-end}, verbose)
+end)
 
-return app
+return { app }

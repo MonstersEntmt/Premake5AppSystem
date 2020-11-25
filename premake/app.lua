@@ -1,150 +1,319 @@
-local globalApp = {}
-if not apps then
-	apps = {}
+newoption({
+	trigger = "verbose",
+	description = "Print debug info"
+})
+
+local function SetDefaultGlobals()
+	if not GLOBALS then GLOBALS = {} end
+	if not GLOBALS_PUSHED then GLOBALS_PUSHED = {} end
+	if not GLOBALS_APPS then GLOBALS_APPS = {} end
+	if not GLOBALS.currentPath then GLOBALS.currentPath = "" end
+	if not GLOBALS.fileName then GLOBALS.fileName = "premake5.lua" end
+	if not GLOBALS.filePath then GLOBALS.filePath = "premake5.lua" end
+	if not GLOBALS.verbose then GLOBALS.verbose = _OPTIONS["verbose"] end
 end
 
-function globalApp.third_party_app(name, currentPath, verbose)
-	if apps[name] then
-		return apps[name]
+-- Set the default global variables
+SetDefaultGlobals()
+
+local function deepcopy(orig)
+	local orig_type = type(orig)
+	local copy
+	if orig_type == 'table' then
+		copy = {}
+		for orig_key, orig_value in next, orig, nil do
+			copy[deepcopy(orig_key)] = deepcopy(orig_value)
+		end
+		setmetatable(copy, deepcopy(getmetatable(orig)))
+	else -- number, string, boolean, etc
+		copy = orig
 	end
-	
-	local module_path = "Third_Party/" .. name .. "/premakeApp.lua"
-	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/", verbose)
-	app.warnings = "Off"
-	apps[app.name] = app
-	
-	return app
+	return copy
 end
 
-function globalApp.third_party_library(name, currentPath, verbose)
-	if apps[name] then
-		return apps[name]
+local function PushGlobals()
+	if not GLOBALS then SetDefaultGlobals() end
+	table.insert(GLOBALS_PUSHED, deepcopy(GLOBALS))
+end
+
+local function PopGlobals()
+	GLOBALS = table.remove(GLOBALS_PUSHED)
+end
+
+-- Global APP structure
+local APP = {
+	workspaceName = "Premake Workspace",
+	platforms = {},
+	configurations = {},
+	thirdPartyFolder = "Third_Party/",
+	defaultIncludeDir = "/inc/",
+	defaultSourceDir = "/src/",
+	defautlDebugFolder = "/run/",
+	startApp = nil
+}
+
+-- Print a message if '--verbose' flag is set
+function APP.DebugLog(message)
+	if GLOBALS and GLOBALS.verbose then
+		print(message)
 	end
-	
-	local module_path = "Third_Party/" .. name .. ".lua"
-	local app = assert(loadfile(module_path))(currentPath .. "Third_Party/" .. name .. "/", verbose)
-	app.warnings = "Off"
-	apps[app.name] = app
-	
-	return app
 end
 
-function globalApp.local_app(verbose)
-	if apps[name] then
-		return apps[name]
+-- Prints the global variables if '--verbose' flag is set
+function APP.DebugLogGlobals()
+	APP.DebugLog("--------------------------")
+	APP.DebugLog("|  Premake App Globals    ")
+	APP.DebugLog("|> File Name: " .. GLOBALS.fileName .. "'")
+	APP.DebugLog("|> File Path: " .. GLOBALS.filePath .. "'")
+	APP.DebugLog("|> Current Path: '" .. GLOBALS.currentPath .. "'")
+	APP.DebugLog("|> Verbose: '" .. tostring(GLOBALS.verbose) .. "'")
+	APP.DebugLog("--------------------------")
+end
+
+-- Set's the name of the workspace
+function APP.SetWorkspaceName(workspaceName)
+	APP.workspaceName = workspaceName
+	APP.DebugLog("Set workspace name to '" .. workspaceName .. "'")
+end
+
+-- Add's a platform to the workspace
+function APP.AddPlatform(platform)
+	table.insert(APP.platforms, platform)
+	APP.DebugLog("Added platform '" .. platform .. "' to the workspace")
+end
+
+-- Clear's all platforms from the workspace
+function APP.ClearPlatforms()
+	APP.platforms = {}
+	APP.DebugLog("Cleared all platforms from the workspace")
+end
+
+-- Add's a configuration to the workspace
+function APP.AddConfiguration(configuration)
+	table.insert(APP.configurations, configuration)
+	APP.DebugLog("Added configuration '" .. configuration .. "' to the workspace")
+end
+
+-- Clear's all configurations from the workspace
+function APP.ClearConfigurations()
+	APP.configurations = {}
+	APP.DebugLog("Cleared all configurations from the workspace")
+end
+
+-- Set's the third party folder for this workspace
+function APP.SetThirdPartyFolder(thirdPartyfolder)
+	APP.thirdPartyFolder = thirdPartyFolder
+	APP.DebugLog("Set third party folder to '" .. thirdPartyFolder .. "'")
+end
+
+-- Set's the include folder for new projects this workspace
+function APP.SetDefaultIncludeFolder(includeFolder)
+	APP.defaultIncludeDir = includeFolder
+	APP.DebugLog("Set include folder to '" .. includeFolder .. "'")
+end
+
+-- Set's the source folder for new projects in this workspace
+function APP.SetDefaultSourceFolder(sourceFolder)
+	APP.defaultSourceDir = sourceFolder
+	APP.DebugLog("Set source folder to '" .. sourceFolder .. "'")
+end
+
+-- Set's the debug folder for new projects in this workspace
+function APP.SetDefaultDebugFolder(debugFolder)
+	APP.defaultDebugFolder = debugFolder
+	APP.DebugLog("Set debug folder to '" .. debugFolder .. "'")
+end
+
+-- Set's the startup app for this workspace
+function APP.SetStartApp(app)
+	APP.startApp = app
+	APP.DebugLog("Set startup app to '" .. app.name .. "'")
+end
+
+-- Get's or loads a third party app at 'APP.thirdPartyFolder + app + /premakeApp.lua'
+function APP.GetThirdPartyApp(app)
+	APP.DebugLog("Getting Third Party App '" .. app .. "'")
+	local modulePath = APP.thirdPartyFolder .. app .. "/premakeApp.lua"
+	PushGlobals()
+	GLOBALS.fileName = "premakeApp.lua"
+	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
+	GLOBALS.currentPath = GLOBALS.currentPath .. APP.thirdPartyFolder .. app .. "/"
+	APP.DebugLogGlobals()
+	local ret = dofile(modulePath)
+	PopGlobals()
+	return ret
+end
+
+-- Get's or loads a third party library at 'APP.thirdPartyFolder + app + .lua'
+function APP.GetThirdPartyLibrary(library)
+	APP.DebugLog("Getting Third Party Library '" .. library .. "'")
+	local modulePath = APP.thirdPartyFolder .. library .. ".lua"
+	PushGlobals()
+	GLOBALS.fileName = library .. ".lua"
+	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
+	GLOBALS.currentPath = GLOBALS.currentPath .. APP.thirdPartyFolder .. library .. "/"
+	APP.DebugLogGlobals()
+	local ret = dofile(modulePath)
+	PopGlobals()
+	return ret
+end
+
+-- Get's or loads a app at 'app + /premakeApp.lua'
+function APP.GetApp(app)
+	while string.sub(app, -1, -1) == "/" do
+		app = string.sub(app, 1, -2)
 	end
-	
-	local app = assert(loadfile("premakeApp.lua"))("", verbose)
-	app.group = "Apps"
-	apps[app.name] = app
-	
-	return app
+	APP.DebugLog("Getting App '" .. app .. "'")
+	local path = string.sub(app, 1, string.find(app, "/[^/]*$"))
+	local name = string.sub(app, string.find(app, "/[^/]*$") + 1)
+	local modulePath = app .. "/premakeApp.lua"
+	PushGlobals()
+	GLOBALS.fileName = "premakeApp.lua"
+	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
+	GLOBALS.currentPath = GLOBALS.currentPath .. path .. name .. "/"
+	APP.DebugLogGlobals()
+	local ret = dofile(modulePath)
+	PopGlobals()
+	return ret
 end
 
-function globalApp.app(name, currentPath, verbose)
-	if apps[name] then
-		return apps[name]
+-- Get's or loads a library at 'library + .lua'
+function APP.GetLibrary(library)
+	while string.sub(library, -1, -1) == "/" do
+		library = string.sub(library, 1, -2)
+	end
+	APP.DebugLog("Getting Library '" .. library .. "'")
+	local path = string.sub(library, 1, string.find(library, "/[^/]*$"))
+	local name = string.sub(library, string.find(library, "/[^/]*$") + 1)
+	local modulePath = path .. name .. ".lua"
+	PushGlobals()
+	GLOBALS.fileName = name .. ".lua"
+	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
+	GLOBALS.currentPath = GLOBALS.currentPath .. path .. name .. "/"
+	APP.DebugLogGlobals()
+	local ret = dofile(modulePath)
+	PopGlobals()
+	return ret
+end
+
+-- Loads the local app at 'premakeApp.lua'
+function APP.GetLocalApp()
+	APP.DebugLog("Getting Local App")
+	PushGlobals()
+	GLOBALS.filePath = "premakeApp.lua"
+	GLOBALS.fileName = "premakeApp.lua"
+	APP.DebugLogGlobals()
+	local ret = dofile("premakeApp.lua")
+	PopGlobals()
+	return ret
+end
+
+-- Get's or Creates a new app
+function APP.GetOrCreateApp(name)
+	if GLOBALS_APPS[name] then
+		return GLOBALS_APPS[name]
 	end
 	
 	local app = {}
-	
-	app.cppDialect = "C++17"
-	app.rtti = "Off"
-	app.exceptionHandling = "On"
-	app.flags = { "MultiProcessorCompile" }
 	app.name = name
-	app.currentPath = currentPath
-	app.dependencies = {}
-	app.group = "Libs"
-	app.location = "Build/%{_ACTION}"
+	app.group = string.sub(GLOBALS.currentPath, 1, -2)
+	app.group = string.sub(app.group, 1, string.find(app.group, "/[^/]*$"))
+	app.currentPath = GLOBALS.currentPath
+	app.location = name .. "/"
 	app.objectDir = "Output/" .. name .. "/Obj/"
 	app.outputDir = "Output/" .. name .. "/Bin/"
 	app.libraryDir = "Output/" .. name .. "/Lib/"
-	app.includeDir = name .. "/Include/"
-	app.sourceDir = name .. "/Source/"
-	app.resourceDir = name .. "/Assets/"
-	app.debugDir = name .. "/Run/"
+	app.includeDir = name .. "/inc/"
+	app.sourceDir = name .. "/src/"
+	app.resourceDir = name .. "/run/assets/"
+	app.debugDir = name .. "/run/"
+	app.cppDialect = "C++17"
+	app.rtti = "Off"
+	app.exceptionHandling = "On"
 	app.warnings = "Default"
-	
+	app.dependencies = {}
 	app.states = {}
+	app.flags = { "MultiProcessorCompile" }
 	
-	apps[name] = app
-	if verbose then
-		print("Created app " .. name)
+	app.ToString = function()
+		local str = "name = '" .. app.name .. "'\n"
+		str = str .. "group = '" .. app.group .. "'\n"
+		str = str .. "currentPath = '" .. app.currentPath .. "'\n"
+		str = str .. "location = '" .. app.location .. "'\n"
+		str = str .. "objectDir = '" .. app.objectDir .. "'\n"
+		str = str .. "outputDir = '" .. app.outputDir .. "'\n"
+		str = str .. "libraryDir = '" .. app.libraryDir .. "'\n"
+		str = str .. "includeDir = '" .. app.includeDir .. "'\n"
+		str = str .. "sourceDir = '" .. app.sourceDir .. "'\n"
+		str = str .. "resourceDir = '" .. app.resourceDir .. "'\n"
+		str = str .. "debugDir = '" .. app.debugDir .. "'\n"
+		str = str .. "cppDialect = '" .. app.cppDialect .. "'\n"
+		str = str .. "rtti = '" .. app.rtti .. "'\n"
+		str = str .. "exceptionHandling = '" .. app.exceptionHandling .. "'\n"
+		str = str .. "warnings = '" .. app.warnings .. "'\n"
+		str = str .. "dependencies = '" .. #app.dependencies .. "'\n"
+		str = str .. "states = '" .. #app.states .. "'\n"
+		str = str .. "flags = '" .. #app.flags .. "'"
+		return str
 	end
-	return app
-end
-
-function globalApp.addFlag(app, flag, verbose)
-	table.insert(app.flags, flag)
-	if verbose then
-		print("Added flag " .. flag .. " to "  .. app.name)
+	
+	app.AddFlag = function(flag)
+		table.insert(app.flags, flag)
+		APP.DebugLog("Added Flag '" .. flag .. "' to '" .. app.name .. "'")
 	end
-end
-
-function globalApp.getLocalFilePath(app, file)
-	return app.currentPath .. file
-end
-
-function globalApp.addFile(app, file, verbose)
-	if not app.files then
-		app.files = {}
+	app.GetLocalFilePath = function(file)
+		return app.currentPath .. file
 	end
-
-	table.insert(app.files, file)
-	if verbose then
-		print("Added file " .. file .. " to "  .. app.name)
+	app.AddFile = function(file)
+		if not app.files then app.files = {} end
+		
+		table.insert(app.files, file)
+		APP.DebugLog("Added file '" .. file .. "' to '" .. app.name "'")
 	end
-end
-
-function globalApp.addDependency(app, dependency, verbose)
-	app.dependencies[dependency.name] = dependency
-	if verbose then
-		print("Added dependency " .. dependency.name .. " to " .. app.name)
+	app.AddDependency = function(dependency)
+		app.dependencies[dependency.name] = dependency
+		APP.DebugLog("Added dependency '" .. dependency.name .. "' to '" .. app.name .. "'")
 	end
-end
-
-function globalApp.addState(app, state, verbose)
-	table.insert(app.states, state)
-	if verbose then
-		if type(state.filter) == "table" then
+	app.AddState = function(filter, func)
+		table.insert(app.states, { filter = filter, func = func })
+		if type(filter) == "table" then
 			local str = "Added state { "
-			for i, filter in pairs(state.filter) do
-				str = str .. '"' .. filter .. '"'
-				if i < #state.filter then
+			for i, flt in pairs(filter) do
+				str = str .. "'" .. flt .. "'"
+				if i < #filter then
 					str = str .. ", "
 				end
 			end
-			print(str .. " } to " .. app.name)
+			APP.DebugLog(str .. " } to '" .. app.name .. "'")
 		else
-			print("Added state " .. '"' .. state.filter .. '"' .. " to " .. app.name)
+			APP.DebugLog("Added state '" .. filter .. "' to '" .. app.name .. "'")
 		end
 	end
-end
-
-local function getAllIncludeDirectories(app, includeDirs)
-	table.insert(includeDirs, app.currentPath .. app.includeDir)
-	for name, dep in pairs(app.dependencies) do
-		getAllIncludeDirectories(dep, includeDirs)
-	end
-end
-
-local function premakeApp(app, verbose)
-	if app.premaked then
-		return
-	end
-
-	local deps = {}
-	local sysincludedirectories = {}
-	for name, dep in pairs(app.dependencies) do
-		table.insert(deps, name)
-		premakeApp(dep)
-		getAllIncludeDirectories(dep, sysincludedirectories)
+	app.GetAllIncludedDirectories = function(includeDirs)
+		table.insert(includeDirs, app.currentPath .. app.includeDir)
+		for name, dep in pairs(app.dependencies) do
+			dep.GetAllIncludedDirectories(includeDirs)
+		end
 	end
 	
-	if verbose then
-		print("Premake function called on app " .. app.name)
+	GLOBALS_APPS[name] = app
+	APP.DebugLog("Creating App '" .. name .. "'")
+	return app
+end
+
+-- Calls premake functions on the app
+function APP.PremakeApp(app)
+	if app.premaked then return end
+	
+	local deps = {}
+	local sysIncludeDirectories = {}
+	for name, dep in pairs(app.dependencies) do
+		table.insert(deps, name)
+		APP.PremakeApp(dep)
+		dep.GetAllIncludedDirectories(sysIncludeDirectories)
 	end
+	
+	APP.DebugLog("Premake function called on app '" .. app.name .. "'")
 	group(app.group)
 	cppdialect(app.cppDialect)
 	exceptionhandling(app.exceptionHandling)
@@ -158,7 +327,7 @@ local function premakeApp(app, verbose)
 	warnings(app.warnings)
 	objdir(app.objectDir)
 	includedirs(app.currentPath .. app.includeDir)
-	sysincludedirs(sysincludedirectories)
+	sysincludedirs(sysIncludeDirectories)
 	if app.files then
 		local Files = {}
 		for i, file in pairs(app.files) do
@@ -169,6 +338,8 @@ local function premakeApp(app, verbose)
 		files({
 			app.currentPath .. app.includeDir .. "**.h",
 			app.currentPath .. app.includeDir .. "**.hpp",
+			app.currentPath .. app.sourceDir .. "**.h",
+			app.currentPath .. app.sourceDir .. "**.hpp",
 			app.currentPath .. app.sourceDir .. "**.c",
 			app.currentPath .. app.sourceDir .. "**.cpp"
 		})
@@ -179,13 +350,13 @@ local function premakeApp(app, verbose)
 	
 	for i, state in pairs(app.states) do
 		filter(state.filter)
-		state.premakeState()
+		state.func()
 	end
 	
 	if project().kind == "StaticLib" or project().kind == "SharedLib" then
-		targetdir(app.currentPath .. app.libraryDir)
+		targetdir(app.libraryDir)
 	else
-		targetdir(app.currentPath .. app.outputDir)
+		targetdir(app.outputDir)
 	end
 	
 	filter("configurations:Debug")
@@ -213,18 +384,17 @@ local function premakeApp(app, verbose)
 	app.premaked = true
 end
 
-function globalApp.premakeWorkspace(WorkspaceName, Platforms, Configurations, startApp, verbose)
-	if verbose then
-		print("Premake workspace called with " .. startApp.name .. " as startup")
+-- Calls all premake functions for this workspace, that includes the created apps too
+function APP.PremakeWorkspace()
+	APP.DebugLog("Premake workspace called with '" .. APP.startApp.name .. "' as startup project")
+	workspace(APP.workspaceName)
+	platforms(APP.platforms)
+	configurations(APP.configurations)
+	for name, app in pairs(GLOBALS_APPS) do
+		APP.PremakeApp(app)
 	end
-	workspace(WorkspaceName)
-	platforms(Platforms)
-	configurations(Configurations)
-	for name, app in pairs(apps) do
-		premakeApp(app)
-	end
-	workspace(WorkspaceName)
-	startproject(startApp.name)
+	workspace(APP.workspaceName)
+	startproject(APP.startApp.name)
 end
 
-return globalApp
+return APP

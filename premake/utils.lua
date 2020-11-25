@@ -1,16 +1,24 @@
-utils = {}
+local UTILS = {}
 
-function utils.get_platforms()
+function UTILS.AddPlatforms()
 	if _ACTION == "android-studio" then
-		return { "armeabi-v7a", "arm64-v8a", "x86", "x64_64" }
+		APP.AddPlatform("armeabi-v7a")
+		APP.AddPlatform("arm64-v8a")
+		APP.AddPlatform("x86")
+		APP.AddPlatform("x86_64")
 	end
 	
 	if os.ishost("windows") then
-		return { "x64" }
+		APP.AddPlatform("x64")
 	end
 	
 	local arch = os.outputof("uname -m")
-	return { arch }
+	APP.AddPlatform(arch)
 end
 
-return utils
+function UTILS.AddConfigurations()
+	APP.AddConfiguration("Debug")
+	APP.AddConfiguration("Release")
+end
+
+return UTILS
