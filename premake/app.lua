@@ -31,15 +31,6 @@ local function deepcopy(orig)
 	return copy
 end
 
-local function PushGlobals()
-	if not GLOBALS then SetDefaultGlobals() end
-	table.insert(GLOBALS_PUSHED, deepcopy(GLOBALS))
-end
-
-local function PopGlobals()
-	GLOBALS = table.remove(GLOBALS_PUSHED)
-end
-
 -- Global APP structure
 local APP = {
 	workspaceName = "Premake Workspace",
@@ -51,6 +42,15 @@ local APP = {
 	defaultDebugFolder = "/run/",
 	startApp = nil
 }
+
+function APP.PushGlobals()
+	if not GLOBALS then SetDefaultGlobals() end
+	table.insert(GLOBALS_PUSHED, deepcopy(GLOBALS))
+end
+
+function APP.PopGlobals()
+	GLOBALS = table.remove(GLOBALS_PUSHED)
+end
 
 -- Print a message if '--verbose' flag is set
 function APP.DebugLog(message)
@@ -134,13 +134,20 @@ end
 function APP.GetThirdPartyApp(app)
 	APP.DebugLog("Getting Third Party App '" .. app .. "'")
 	local modulePath = APP.thirdPartyFolder .. app .. "/premakeApp.lua"
-	PushGlobals()
+	APP.PushGlobals()
 	GLOBALS.fileName = "premakeApp.lua"
 	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
 	GLOBALS.currentPath = GLOBALS.currentPath .. APP.thirdPartyFolder .. app .. "/"
 	APP.DebugLogGlobals()
 	local ret = dofile(modulePath)
-	PopGlobals()
+	if not ret.name then
+		for _, app in pairs(ret) do
+			app.group = "Third_Party_Apps"
+		end
+	else
+		ret.group = "Third_Party_Apps"
+	end
+	APP.PopGlobals()
 	return ret
 end
 
@@ -148,13 +155,20 @@ end
 function APP.GetThirdPartyLibrary(library)
 	APP.DebugLog("Getting Third Party Library '" .. library .. "'")
 	local modulePath = APP.thirdPartyFolder .. library .. ".lua"
-	PushGlobals()
+	APP.PushGlobals()
 	GLOBALS.fileName = library .. ".lua"
 	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
 	GLOBALS.currentPath = GLOBALS.currentPath .. APP.thirdPartyFolder .. library .. "/"
 	APP.DebugLogGlobals()
 	local ret = dofile(modulePath)
-	PopGlobals()
+	if not ret.name then
+		for _, app in pairs(ret) do
+			app.group = "Third_Party_Libs"
+		end
+	else
+		ret.group = "Third_Party_Libs"
+	end
+	APP.PopGlobals()
 	return ret
 end
 
@@ -167,13 +181,13 @@ function APP.GetApp(app)
 	local path = string.sub(app, 1, string.find(app, "/[^/]*$"))
 	local name = string.sub(app, string.find(app, "/[^/]*$") + 1)
 	local modulePath = app .. "/premakeApp.lua"
-	PushGlobals()
+	APP.PushGlobals()
 	GLOBALS.fileName = "premakeApp.lua"
 	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
 	GLOBALS.currentPath = GLOBALS.currentPath .. path .. name .. "/"
 	APP.DebugLogGlobals()
 	local ret = dofile(modulePath)
-	PopGlobals()
+	APP.PopGlobals()
 	return ret
 end
 
@@ -186,25 +200,32 @@ function APP.GetLibrary(library)
 	local path = string.sub(library, 1, string.find(library, "/[^/]*$"))
 	local name = string.sub(library, string.find(library, "/[^/]*$") + 1)
 	local modulePath = path .. name .. ".lua"
-	PushGlobals()
+	APP.PushGlobals()
 	GLOBALS.fileName = name .. ".lua"
 	GLOBALS.filePath = GLOBALS.currentPath .. modulePath
 	GLOBALS.currentPath = GLOBALS.currentPath .. path .. name .. "/"
 	APP.DebugLogGlobals()
 	local ret = dofile(modulePath)
-	PopGlobals()
+	if not ret.name then
+		for _, app in pairs(ret) do
+			app.group = "Libs"
+		end
+	else
+		ret.group = "Libs"
+	end
+	APP.PopGlobals()
 	return ret
 end
 
 -- Loads the local app at 'premakeApp.lua'
 function APP.GetLocalApp()
 	APP.DebugLog("Getting Local App")
-	PushGlobals()
+	APP.PushGlobals()
 	GLOBALS.filePath = "premakeApp.lua"
 	GLOBALS.fileName = "premakeApp.lua"
 	APP.DebugLogGlobals()
 	local ret = dofile("premakeApp.lua")
-	PopGlobals()
+	APP.PopGlobals()
 	return ret
 end
 
@@ -216,8 +237,10 @@ function APP.GetOrCreateApp(name)
 	
 	local app = {}
 	app.name = name
-	app.group = string.sub(GLOBALS.currentPath, 1, -2)
-	app.group = string.sub(app.group, 1, string.find(app.group, "/[^/]*$"))
+	-- TODO: Implement a way for this to work:
+	--app.group = string.sub(GLOBALS.currentPath, 1, -2)
+	--app.group = string.sub(app.group, 1, string.find(app.group, "/[^/]*$"))
+	app.group = "Apps"
 	app.currentPath = GLOBALS.currentPath
 	app.location = name .. "/"
 	app.objectDir = "Output/" .. name .. "/Obj/"
@@ -227,6 +250,7 @@ function APP.GetOrCreateApp(name)
 	app.sourceDir = name .. APP.defaultSourceDir
 	app.resourceDir = name .. APP.defaultDebugFolder .. "assets/"
 	app.debugDir = name .. APP.defaultDebugFolder
+	app.addLink = true
 	app.cppDialect = "C++17"
 	app.rtti = "Off"
 	app.exceptionHandling = "On"
@@ -268,7 +292,7 @@ function APP.GetOrCreateApp(name)
 		if not app.files then app.files = {} end
 		
 		table.insert(app.files, file)
-		APP.DebugLog("Added file '" .. file .. "' to '" .. app.name "'")
+		APP.DebugLog("Added file '" .. file .. "' to '" .. app.name .. "'")
 	end
 	app.AddDependency = function(dependency)
 		app.dependencies[dependency.name] = dependency
@@ -308,7 +332,9 @@ function APP.PremakeApp(app)
 	local deps = {}
 	local sysIncludeDirectories = {}
 	for name, dep in pairs(app.dependencies) do
-		table.insert(deps, name)
+		if dep.addLink then
+			table.insert(deps, name)
+		end
 		APP.PremakeApp(dep)
 		dep.GetAllIncludedDirectories(sysIncludeDirectories)
 	end
