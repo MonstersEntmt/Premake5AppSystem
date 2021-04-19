@@ -7,7 +7,7 @@ To make sure that other projects can include another project a fix had to be mad
 That's where this premake5 system comes in.
 
 All you need is the `premake/` folder
-and a `premakeApp.lua` file that creates an app(s) and returns it.
+and a `premakeApp.lua` file that creates one or more apps and returns them.
 
 To create a project you need a `premakeApp.lua` file that creates the app(s) using
 ```lua
@@ -24,12 +24,12 @@ local customPathedLib = APP.GetLibrary("SomeFolder/CustomPathedLib") -- Loads a 
 
 You can change what 'APP.thirdPartyFolder' is using this function in the `premakeApp.lua` file
 ```lua
-APP.SetThirdPartyFolder("ThirdParty")
+APP.SetThirdPartyFolder("Vendors")
 ```
 Changing project properties can be done using variables in the app object. For help on what can be done visit the Wiki.
 
 ### Q. But how do I change premake stuff myself?<br>
 A. Use State object and add that to the app with a filter of your choosing, making the filter = {} will make it work on anything.
 
-### Q. Why does git detect some workspace files were include?<br>
+### Q. Why does git detect some workspace files was included?<br>
 A. This project does not have all the ignores specified in the `.gitignore` so if any are missing please open an issue and specify all the ignores that are missing.

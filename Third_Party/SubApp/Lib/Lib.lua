@@ -1,5 +1,5 @@
--- Create SubLib app
-local app = APP.GetOrCreateApp("SubLib")
+-- Create SubApp lib
+local app = APP.GetOrCreateApp("SubAppLib")
 app.kind = "StaticLib"
 app.location = ""
 app.includeDir = ""
