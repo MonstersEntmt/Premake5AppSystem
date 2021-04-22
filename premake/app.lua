@@ -32,9 +32,9 @@ local APP = {
 		currentPath = "",
 		filename = "premake5.lua",
 		filepath = "premake5.lua",
-		includeDir = "/inc/",
-		sourceDir = "/src/",
-		debugDir = "/run/",
+		includeDir = "inc/",
+		sourceDir = "src/",
+		debugDir = "run/",
 		thirdPartyDir = "Third_Party/",
 		globalStates = {
 			{
@@ -185,7 +185,18 @@ end
 function APP.AddGlobalState(filter, func)
 	table.insert(APP.state.globalStates, { filter = filter, func = func })
 	if APP.IsVerbose() then
-		print("Added global state '" .. filter .. "'")
+		if type(filter) == "table" then
+			local str = "Added global state { "
+			for i, flt in pairs(filter) do
+				str = str .. "'" .. flt .. "'"
+				if i < #filter then
+					str = str .. ", "
+				end
+			end
+			print(str .. " }")
+		else
+			print("Added global state '" .. filter .. "'")
+		end
 	end
 	return #APP.state.globalStates
 end
@@ -296,13 +307,13 @@ function APP.GetOrCreateApp(name)
 		app.group = ""
 	end
 	app.currentPath = APP.state.currentPath
-	app.location = name .. "/"
+	app.location = app.currentPath .. name .. "/"
 	app.objectDir = "Output/Int-" .. app.name .. "-%{cfg.platform}-%{cfg.buildcfg}/"
 	app.outputDir = "Output/Bin-%{cfg.platform}-%{cfg.buildcfg}/"
 	app.libraryDir = "Output/Lib-%{cfg.platform}-%{cfg.buildcfg}/"
-	app.includeDir = name .. APP.state.includeDir
-	app.sourceDir = name .. APP.state.sourceDir
-	app.debugDir = name .. APP.state.debugDir
+	app.includeDir = APP.state.includeDir
+	app.sourceDir = APP.state.sourceDir
+	app.debugDir = APP.state.debugDir
 	app.addLink = true
 	app.cppDialect = "C++17"
 	app.rtti = "Off"
@@ -354,11 +365,11 @@ function APP.GetOrCreateApp(name)
 	end
 	
 	app.GetLocalFilePath = function(file)
-		return app.currentPath .. file
+		return app.location .. file
 	end
 	
 	app.GetAllIncludedDirectories = function(includeDirs)
-		table.insert(includeDirs, app.currentPath .. app.includeDir)
+		table.insert(includeDirs, app.GetLocalFilePath(app.includeDir))
 		for name, dep in pairs(app.dependencies) do
 			dep.GetAllIncludedDirectories(includeDirs)
 		end
@@ -492,7 +503,7 @@ function APP.PremakeApp(app)
 	exceptionhandling(app.exceptionHandling)
 	flags(app.flags)
 	
-	location(app.GetLocalFilePath(app.location))
+	location(app.location)
 	objdir(app.objectDir)
 	includedirs(app.GetLocalFilePath(app.includeDir))
 	local PrivateIncludeDirs = {}
