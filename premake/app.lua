@@ -39,7 +39,7 @@ local APP = {
 		globalStates = {
 			{
 				filter = {},
-				func = function()
+				func = function(app)
 					defines({ "_CRT_SECURE_NO_WARNINGS" })
 					
 					filter("configurations:Debug")
@@ -298,8 +298,8 @@ function APP.GetOrCreateApp(name)
 	app.currentPath = APP.state.currentPath
 	app.location = name .. "/"
 	app.objectDir = "Output/Int-" .. app.name .. "-%{cfg.platform}-%{cfg.buildcfg}/"
-	app.outputDir = "Output/Bin/"
-	app.libraryDir = "Output/Bin/"
+	app.outputDir = "Output/Bin-%{cfg.platform}-%{cfg.buildcfg}/"
+	app.libraryDir = "Output/Lib-%{cfg.platform}-%{cfg.buildcfg}/"
 	app.includeDir = name .. APP.state.includeDir
 	app.sourceDir = name .. APP.state.sourceDir
 	app.debugDir = name .. APP.state.debugDir
@@ -308,6 +308,10 @@ function APP.GetOrCreateApp(name)
 	app.rtti = "Off"
 	app.exceptionHandling = "On"
 	app.warnings = "Default"
+	app.usePCH = false
+	app.pchHeader = ""
+	app.pchSource = ""
+	app.privateIncludeDirs = {}
 	app.dependencies = {}
 	app.states = {}
 	app.recursiveStates = {}
@@ -317,7 +321,11 @@ function APP.GetOrCreateApp(name)
 	
 	app.ToString = function()
 		local str = "name = '" .. app.name .. "'\n"
-		str = str .. "kind = '" .. app.kind .. "'\n"
+		if app.kind then
+			str = str .. "kind = '" .. app.kind .. "'\n"
+		else
+			str = str .. "kind = 'Unknown'\n"
+		end
 		str = str .. "group = '" .. app.group .. "'\n"
 		str = str .. "currentPath = '" .. app.currentPath .. "'\n"
 		str = str .. "location = '" .. app.location .. "'\n"
@@ -331,7 +339,11 @@ function APP.GetOrCreateApp(name)
 		str = str .. "cppDialect = '" .. app.cppDialect .. "'\n"
 		str = str .. "rtti = '" .. app.rtti .. "'\n"
 		str = str .. "exceptionHandling = '" .. app.exceptionHandling .. "'\n"
+		str = str .. "usePCH = '" .. boolToString(app.usePCH) .. "'\n"
+		str = str .. "pchHeader = '" .. app.pchHeader .. "'\n"
+		str = str .. "pchSource = '" .. app.pchSource .. "'\n"
 		str = str .. "warnings = '" .. app.warnings .. "'\n"
+		str = str .. "privateIncludeDirs = '" .. #app.privateIncludeDirs .. "'\n"
 		str = str .. "dependencies = '" .. #app.dependencies .. "'\n"
 		str = str .. "states = '" .. #app.states .. "'\n"
 		str = str .. "recursiveStates = '" .. #app.recursiveStates .. "'\n"
@@ -349,6 +361,22 @@ function APP.GetOrCreateApp(name)
 		table.insert(includeDirs, app.currentPath .. app.includeDir)
 		for name, dep in pairs(app.dependencies) do
 			dep.GetAllIncludedDirectories(includeDirs)
+		end
+	end
+	
+	app.SetPCH = function(pchHeader, pchSource)
+		app.usePCH = true
+		app.pchHeader = pchHeader
+		app.pchSource = pchSource
+		if APP.IsVerbose() then
+			print("Set PCH header to '" .. pchHeader .. "' and source to '" .. pchSource .. "' to '" .. app.name .. "'")
+		end
+	end
+	
+	app.AddPrivateIncludeDir = function(includeDir)
+		table.insert(app.privateIncludeDirs, includeDir)
+		if APP.IsVerbose() then
+			print("Added private include dir '" .. includeDir .. "' to '" .. app.name .. "'")
 		end
 	end
 	
@@ -457,35 +485,44 @@ function APP.PremakeApp(app)
 	end
 	group(app.group)
 	
+	project(app.name)
+	
 	cppdialect(app.cppDialect)
 	rtti(app.rtti)
 	exceptionhandling(app.exceptionHandling)
 	flags(app.flags)
 	
-	project(app.name)
-	
-	location(app.currentPath .. app.location)
+	location(app.GetLocalFilePath(app.location))
 	objdir(app.objectDir)
-	includedirs(app.currentPath .. app.includeDir)
+	includedirs(app.GetLocalFilePath(app.includeDir))
+	local PrivateIncludeDirs = {}
+	for _, includeDir in pairs(app.privateIncludeDirs) do
+		table.insert(PrivateIncludeDirs, app.GetLocalFilePath(includeDir))
+	end
 	sysincludedirs(sysIncludeDirectories)
 	local Files = {}
 	for _, file in pairs(app.files) do
-		table.insert(Files, app.currentPath .. file)
+		table.insert(Files, app.GetLocalFilePath(file))
 	end
 	if #Files > 0 then
 		files(Files)
 	else
 		files({
-			app.currentPath .. app.includeDir .. "**.h",
-			app.currentPath .. app.includeDir .. "**.hpp",
-			app.currentPath .. app.sourceDir .. "**.h",
-			app.currentPath .. app.sourceDir .. "**.hpp",
-			app.currentPath .. app.sourceDir .. "**.c",
-			app.currentPath .. app.sourceDir .. "**.cpp"
+			app.GetLocalFilePath(app.includeDir .. "**.h"),
+			app.GetLocalFilePath(app.includeDir .. "**.hpp"),
+			app.GetLocalFilePath(app.sourceDir .. "**.h"),
+			app.GetLocalFilePath(app.sourceDir .. "**.hpp"),
+			app.GetLocalFilePath(app.sourceDir .. "**.c"),
+			app.GetLocalFilePath(app.sourceDir .. "**.cpp")
 		})
 	end
-	debugdir(app.currentPath .. app.debugDir)
-	xcodebuildresources(app.currentPath .. app.debugDir)
+	debugdir(app.GetLocalFilePath(app.debugDir))
+	xcodebuildresources(app.GetLocalFilePath(app.debugDir))
+	
+	if app.usePCH then
+		pchheader(app.pchHeader)
+		pchsource(app.sourceDir .. app.pchSource)
+	end
 	
 	links(deps)
 	warnings(app.warnings)
@@ -497,7 +534,7 @@ function APP.PremakeApp(app)
 	for _, state in pairs(APP.state.globalStates) do
 		if state then
 			filter(state.filter)
-			state.func()
+			state.func(app)
 		end
 	end
 	
@@ -506,14 +543,14 @@ function APP.PremakeApp(app)
 	for _, state in pairs(recursiveStates) do
 		if state then
 			filter(state.filter)
-			state.func()
+			state.func(app)
 		end
 	end
 	
 	for _, state in pairs(app.states) do
 		if state then
 			filter(state.filter)
-			state.func()
+			state.func(app)
 		end
 	end
 	

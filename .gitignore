@@ -21,7 +21,7 @@
 /gradlew
 /gradlew.bat
 /local.properties
-/Makefile
+Makefile
 *.Make
 
 premake5.exe
