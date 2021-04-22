@@ -533,7 +533,7 @@ function APP.PremakeApp(app)
 	
 	if app.usePCH then
 		pchheader(app.pchHeader)
-		pchsource(app.sourceDir .. app.pchSource)
+		pchsource(app.GetLocalFilePath(app.sourceDir .. app.pchSource))
 	end
 	
 	links(deps)
