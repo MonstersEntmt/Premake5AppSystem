@@ -499,6 +499,7 @@ function APP.PremakeApp(app)
 	for _, includeDir in pairs(app.privateIncludeDirs) do
 		table.insert(PrivateIncludeDirs, app.GetLocalFilePath(includeDir))
 	end
+	includedirs(PrivateIncludeDirs)
 	sysincludedirs(sysIncludeDirectories)
 	local Files = {}
 	for _, file in pairs(app.files) do
