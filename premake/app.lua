@@ -32,6 +32,9 @@ local APP = {
 		currentPath = "",
 		filename = "premake5.lua",
 		filepath = "premake5.lua",
+		objectDir = "%{wks.location}/Output/Int-%{prj.name}-%{cfg.platform}-%{cfg.buildcfg}/",
+		outputDir = "%{wks.location}/Output/Bin-%{cfg.platform}-%{cfg.buildcfg}/",
+		libraryDir = "%{wks.location}/Output/Lib-%{cfg.platform}-%{cfg.buildcfg}/",
 		includeDir = "inc/",
 		sourceDir = "src/",
 		debugDir = "run/",
@@ -154,6 +157,27 @@ function APP.IsVerbose()
 	return APP.state.verbose
 end
 
+function APP.SetObjectDir(objectDir)
+	APP.state.objectDir = objectDir
+	if APP.IsVerbose() then
+		print("Set object dir to '" .. objectDir .. "'")
+	end
+end
+
+function APP.SetOutputDir(outputDir)
+	APP.state.outputDir = outputDir
+	if APP.IsVerbose() then
+		print("Set output dir to '" .. outputDir .. "'")
+	end
+end
+
+function APP.SetLibraryDir(libraryDir)
+	APP.state.libraryDir = libraryDir
+	if APP.IsVerbose() then
+		print("Set library dir to '" .. libraryDir .. "'")
+	end
+end
+
 function APP.SetIncludeDir(includeDir)
 	APP.state.includeDir = includeDir
 	if APP.IsVerbose() then
@@ -209,6 +233,9 @@ end
 
 function APP.PushState()
 	table.insert(APP.stateStack, deepcopy(APP.state))
+	APP.state.objectDir = "%{wks.location}/Output/Int-%{prj.name}-%{cfg.platform}-%{cfg.buildcfg}/"
+	APP.state.outputDir = "%{wks.location}/Output/Bin-%{cfg.platform}-%{cfg.buildcfg}/"
+	APP.state.libraryDir = "%{wks.location}/Output/Lib-%{cfg.platform}-%{cfg.buildcfg}/"
 	APP.state.includeDir = "/inc/"
 	APP.state.sourceDir = "/src/"
 	APP.state.debugDir = "/run/"
@@ -308,9 +335,9 @@ function APP.GetOrCreateApp(name)
 	end
 	app.currentPath = APP.state.currentPath
 	app.location = app.currentPath .. name .. "/"
-	app.objectDir = "Output/Int-" .. app.name .. "-%{cfg.platform}-%{cfg.buildcfg}/"
-	app.outputDir = "Output/Bin-%{cfg.platform}-%{cfg.buildcfg}/"
-	app.libraryDir = "Output/Lib-%{cfg.platform}-%{cfg.buildcfg}/"
+	app.objectDir = APP.state.objectDir
+	app.outputDir = APP.state.outputDir
+	app.libraryDir = APP.state.libraryDir
 	app.includeDir = APP.state.includeDir
 	app.sourceDir = APP.state.sourceDir
 	app.debugDir = APP.state.debugDir
