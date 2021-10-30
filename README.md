@@ -1,3 +1,5 @@
+# **!!DEPRECATED!!**
+
 # Premake5AppSystem
 A premake5 system that allows apps with dependencies with more dependencies
 
